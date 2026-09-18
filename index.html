@@ -220,6 +220,162 @@ clear.onclick = () => {
 </script>
 
 </body>
+</html>
+
+  <div id="answer"></div>
+
+  <button id="clear">Clear Conversation</button>
+
+<script>
+
+const WORKER_URL =
+  "https://dry-frost-52c6.hyderalima333.workers.dev";
+
+const mic = document.getElementById("mic");
+const status = document.getElementById("status");
+const text = document.getElementById("text");
+const answer = document.getElementById("answer");
+const clear = document.getElementById("clear");
+
+const SpeechRecognition =
+  window.SpeechRecognition ||
+  window.webkitSpeechRecognition;
+
+const recognition = SpeechRecognition
+  ? new SpeechRecognition()
+  : null;
+
+/* Conversation memory */
+let conversation = [];
+
+if (!recognition) {
+
+  status.textContent =
+    "Speech recognition is not supported. Please use Chrome.";
+
+} else {
+
+  recognition.lang = "en-IN";
+  recognition.interimResults = false;
+  recognition.continuous = false;
+
+  mic.onclick = () => {
+
+    text.textContent = "";
+    answer.textContent = "";
+    status.textContent = "Listening...";
+
+    recognition.start();
+  };
+
+  recognition.onresult = async (event) => {
+
+    const message =
+      event.results[0][0].transcript;
+
+    text.textContent =
+      "You: " + message;
+
+    status.textContent =
+      "Thinking...";
+
+    /* Add user's message */
+    conversation.push({
+      role: "user",
+      content: message
+    });
+
+    /* Keep recent conversation */
+    if (conversation.length > 12) {
+      conversation =
+        conversation.slice(-12);
+    }
+
+    try {
+
+      const response = await fetch(
+        WORKER_URL,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            messages: conversation
+          })
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "AI request failed"
+        );
+      }
+
+      answer.textContent =
+        data.answer;
+
+      status.textContent =
+        "Tap the microphone";
+
+      /* Add AI response to memory */
+      conversation.push({
+        role: "assistant",
+        content: data.answer
+      });
+
+      const speech =
+        new SpeechSynthesisUtterance(
+          data.answer
+        );
+
+      speech.lang = "en-IN";
+      speech.rate = 1;
+
+      speechSynthesis.cancel();
+      speechSynthesis.speak(speech);
+
+    } catch (error) {
+
+      answer.textContent =
+        "Sorry, something went wrong.";
+
+      status.textContent =
+        "Please try again.";
+
+      /* Remove failed message */
+      conversation.pop();
+    }
+  };
+
+  recognition.onerror = (event) => {
+
+    status.textContent =
+      "Microphone error: " +
+      event.error;
+  };
+}
+
+/* Clear conversation */
+clear.onclick = () => {
+
+  conversation = [];
+
+  text.textContent = "";
+  answer.textContent = "";
+
+  status.textContent =
+    "Conversation cleared";
+};
+
+</script>
+
+</body>
 </html>          }
         );
       }
