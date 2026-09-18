@@ -1,34 +1,152 @@
-<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>My Voice Assistant</title>
-<style>
-body{margin:0;background:#0b1020;color:white;font-family:Arial,sans-serif}main{max-width:520px;margin:auto;padding:24px;min-height:100vh}
-h1{margin-top:20px}.chat{min-height:55vh;padding:10px 0}.b{padding:13px 15px;border-radius:18px;margin:10px 0;max-width:85%;line-height:1.4}.a{background:#202b40}.u{background:#4654c8;margin-left:auto}
-button{border:0;border-radius:50%;width:76px;height:76px;font-size:30px;display:block;margin:25px auto;background:white}
-button.on{background:#ff5364;color:white}#status{text-align:center;color:#aab3c5}
-</style></head>
-<body><main>
-<h1>🎙️ My Voice Assistant</h1><p id="status">Tap the microphone</p>
-<div id="chat" class="chat"><div class="b a">Hello! I'm ready. Say “hello”, ask the time, or ask me something.</div></div>
-<button id="mic">🎙️</button>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Voice Assistant</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      margin-bottom: 30px;
+    }
+
+    #mic {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: none;
+      font-size: 45px;
+      background: #333;
+      color: white;
+    }
+
+    #status {
+      margin: 25px 0;
+      font-size: 18px;
+    }
+
+    #text {
+      font-size: 20px;
+      margin: 20px;
+      min-height: 30px;
+    }
+
+    #answer {
+      font-size: 20px;
+      line-height: 1.5;
+      margin: 25px auto;
+      max-width: 600px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>My Voice Assistant</h1>
+
+  <button id="mic">🎤</button>
+
+  <div id="status">Tap the microphone</div>
+
+  <div id="text"></div>
+
+  <div id="answer"></div>
+
 <script>
-const mic=document.getElementById('mic'),status=document.getElementById('status'),chat=document.getElementById('chat');
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-function add(t,c){let d=document.createElement('div');d.className='b '+c;d.textContent=t;chat.appendChild(d)}
-function say(t){if('speechSynthesis'in window){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(t))}}
-function answer(t){let q=t.toLowerCase(),r;
-if(/hello|hi|hey/.test(q))r='Hello! How can I help you?';
-else if(q.includes('your name'))r="I'm your personal voice assistant.";
-else if(q.includes('time'))r='The time on your phone is '+new Date().toLocaleTimeString();
-else r='I heard you say: '+t+'. AI answers can be added later.';
-add(r,'a');say(r)}
-if(!SR){status.textContent='Your browser does not support voice recognition.'}
-else{
-let rec=new SR();rec.lang=navigator.language||'en-IN';rec.interimResults=false;
-rec.onstart=()=>{status.textContent='Listening…';mic.classList.add('on')};
-rec.onend=()=>{status.textContent='Tap the microphone';mic.classList.remove('on')};
-rec.onerror=()=>{status.textContent='Could not hear you. Try again.';mic.classList.remove('on')};
-rec.onresult=e=>{let t=e.results[0][0].transcript;add(t,'u');answer(t)};
-mic.onclick=()=>rec.start();
+const WORKER_URL =
+  "https://dry-frost-52c6.hyderalima333.workers.dev";
+
+const mic = document.getElementById("mic");
+const status = document.getElementById("status");
+const text = document.getElementById("text");
+const answer = document.getElementById("answer");
+
+const SpeechRecognition =
+  window.SpeechRecognition ||
+  window.webkitSpeechRecognition;
+
+if (!SpeechRecognition) {
+  status.textContent =
+    "Speech recognition is not supported. Please use Chrome.";
 }
-</script></main></body></html>
+
+const recognition = SpeechRecognition
+  ? new SpeechRecognition()
+  : null;
+
+if (recognition) {
+  recognition.lang = "en-IN";
+  recognition.interimResults = false;
+  recognition.continuous = false;
+
+  mic.onclick = () => {
+    text.textContent = "";
+    answer.textContent = "";
+    status.textContent = "Listening...";
+
+    recognition.start();
+  };
+
+  recognition.onresult = async (event) => {
+    const message =
+      event.results[0][0].transcript;
+
+    text.textContent = "You: " + message;
+    status.textContent = "Thinking...";
+
+    try {
+      const response = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: message
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "AI request failed"
+        );
+      }
+
+      answer.textContent = data.answer;
+      status.textContent = "Tap the microphone";
+
+      const speech =
+        new SpeechSynthesisUtterance(data.answer);
+
+      speech.lang = "en-IN";
+      speech.rate = 1;
+
+      speechSynthesis.cancel();
+      speechSynthesis.speak(speech);
+
+    } catch (error) {
+      answer.textContent =
+        "Sorry, something went wrong.";
+
+      status.textContent =
+        "Please try again.";
+    }
+  };
+
+  recognition.onerror = (event) => {
+    status.textContent =
+      "Microphone error: " + event.error;
+  };
+}
+</script>
+
+</body>
+</html>
