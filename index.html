@@ -180,6 +180,9 @@ if (!recognition) {
 
       speech.lang = "en-IN";
       speech.rate = 1;
+      speech.onend = () => {
+  recognition.start();};
+};
 
       speechSynthesis.cancel();
       speechSynthesis.speak(speech);
