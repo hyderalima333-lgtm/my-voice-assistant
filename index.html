@@ -165,7 +165,7 @@ if (!recognition) {
         data.answer;
 
       status.textContent =
-        "Tap the microphone";
+        "Speaking...";
 
       /* Add AI response to memory */
       conversation.push({
@@ -178,10 +178,13 @@ if (!recognition) {
           data.answer
         );
 
-      speech.lang = "en-IN";
+      speech.lang = "te-IN";
       speech.rate = 1;
       speech.onend = () => {
-  recognition.start();};
+  status.textContent = "Listening...";
+  setTimeout(() => {
+    recognition.start();
+  }, 500);
 };
 
       speechSynthesis.cancel();
